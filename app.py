@@ -1,5 +1,6 @@
 import os
 import re
+import tempfile
 import numpy as np
 import pandas as pd
 import random
@@ -324,10 +325,15 @@ def embed_uploaded_image(pil_img, pca_mean, pca_components):
     - extrae features visuales crudas
     - proyecta al espacio PCA entrenado (mismas componentes)
     """
-    tmp_path = os.path.join(OUTPUT_DIR, "_tmp_query_image.jpg")
-    pil_img.save(tmp_path)
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp_file:
+        tmp_path = tmp_file.name
+    try:
+        pil_img.save(tmp_path)
+        vec = extract_features_for_image(tmp_path)
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
-    vec = extract_features_for_image(tmp_path)
     if vec is None:
         return None
     vec = vec.reshape(1, -1)
