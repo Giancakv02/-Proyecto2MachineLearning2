@@ -195,6 +195,7 @@ def load_artifacts():
     return df_train, X_train, coords2d, pca_mean, pca_components
 
 df_train, X_train, coords2d, pca_mean, pca_components = load_artifacts()
+movieid_to_idx = {int(mid): idx for idx, mid in enumerate(df_train["movieId"].astype(int).tolist())}
 
 # =========================
 # Filtros globales (sidebar)
@@ -341,20 +342,16 @@ def embed_uploaded_image(pil_img, pca_mean, pca_components):
     return x_proj
 
 
-def embed_known_movie(movie_row, pca_mean, pca_components):
+def embed_known_movie(movie_row, X_train, movieid_to_idx):
     """
-    Toma una fila del df_train (que tiene poster_path),
-    re-extrae features del póster, y proyecta a PCA.
+    En vez de re-extraer features del póster (que no están en Streamlit),
+    tomamos directamente el embedding precalculado de esa película.
     """
-    poster_path = movie_row["poster_path"]
-    if not os.path.exists(poster_path):
+    movie_id = int(movie_row["movieId"])
+    idx = movieid_to_idx.get(movie_id)
+    if idx is None:
         return None
-    vec = extract_features_for_image(poster_path)
-    if vec is None:
-        return None
-    vec = vec.reshape(1, -1)
-    x_proj = pca_transform(vec, pca_mean, pca_components)
-    return x_proj
+    return X_train[idx:idx+1]
 
 
 # =========================
@@ -399,7 +396,7 @@ with tabs[0]:
 
         if st.button("Buscar similares (película seleccionada)"):
             row_q = df_sorted[df_sorted["title"] == selected_title].iloc[0]
-            emb_q = embed_known_movie(row_q, pca_mean, pca_components)
+            emb_q = embed_known_movie(row_q, X_train, movieid_to_idx)
 
             if emb_q is None:
                 st.error("No se pudo procesar el póster de la película seleccionada.")
